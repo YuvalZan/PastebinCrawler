@@ -10,6 +10,6 @@ class Printer(PipeableWorker):
         log.info(f'{self}: {data}')
         print(data)
 
-    def _handle_failed_input(self, err_data):
-        log.error(f'{self}: {err_data}')
-        return super()._handle_failed_input(err_data)
+    def handle_failed_input(self, type, value, traceback):
+        log.error(f'{self}: {(type, value)}')
+        return super().handle_failed_input((type, value, traceback))

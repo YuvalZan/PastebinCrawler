@@ -100,7 +100,8 @@ class PipeableWorker(abc.ABC):
                     if is_success:
                         output_data = self.work(input_data)
                     else:
-                        is_success, output_data = self._handle_failed_input(input_data)
+                        # input_data is (type, value, traceback)
+                        is_success, output_data = self.handle_failed_input(*input_data)
                 except self.FOLOWTHROUGH_EXCEPTIONS:
                     # These exceptions will continue in the pipe
                     is_success = False
@@ -124,8 +125,8 @@ class PipeableWorker(abc.ABC):
         if self._input_queue is not None:
             self._input_queue.put((is_success, input_data))
 
-    def _handle_failed_input(self, err_data):
+    def handle_failed_input(self, type, value, traceback):
         """
         May overide this method to handle errors from previuse pipe members
         """
-        return False, err_data
+        return False, (type, value, traceback)

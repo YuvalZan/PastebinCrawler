@@ -10,13 +10,13 @@ from pipeable_worker import PipeableWorker
 
 log = logging.getLogger('PastebinCrawler')
 
-_PasteBase = namedtuple('Paste', ['id', 'author', 'title', 'datetime', 'content'])
+_PasteBase = namedtuple('Paste', ['id', 'author', 'title', 'timestamp', 'content'])
 class Paste(_PasteBase):
     """
     """
     def __repr__(self):
-        return f'<{self.id}, {self.author}, "{self.title}", {self.datetime}>'
-
+        return f'<{self.id}, {self.author}, "{self.title}", {arrow.Arrow.fromtimestamp(self.timestamp).format()}>'
+        
 
 class RequestWorker(PipeableWorker):
     METHOD = 'GET'
@@ -105,4 +105,4 @@ class SinglePastebinWorker(RequestWorker):
         raw_time = tree.xpath(self.TIME_XPATH)[0]
         time = arrow.get(raw_time, self.TIME_FORMAT)
         datetime = date.replace(hour=time.hour, minute=time.minute, second=time.second)
-        return Paste(paste_id, author, title, datetime, content)
+        return Paste(paste_id, author, title, datetime.timestamp, content)
