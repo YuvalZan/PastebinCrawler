@@ -4,7 +4,6 @@ from pipeable_worker import PipeableWorker
 log = logging.getLogger('PastebinCrawler')
 
 class Printer(PipeableWorker):
-    DEFAULT_WORKER_NAME = 'Printer'
 
     def work(self, data):
         log.info(f'{self}: {data}')

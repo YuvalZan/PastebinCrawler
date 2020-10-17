@@ -1,7 +1,7 @@
 import logging
 import queue
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent import futures
 
 log = logging.getLogger('PastebinCrawler')
 
@@ -43,9 +43,32 @@ class PipeManager():
     def run(self):
         log.info("Started running pipe manager")
         self._init_pipe()
-        with ThreadPoolExecutor(self.MAX_WORKERS) as executor:
+        working_futures = []
+        with futures.ThreadPoolExecutor(self.MAX_WORKERS) as executor:
             for squad in self._pipable_squad_list:
                 for worker in squad:
                     log.debug(f'Submited worker: {worker}')
-                    executor.submit(worker.work_until_done)
+                    future = executor.submit(worker.work_until_done)
+                    working_futures.append(future)
             # Wait for all workers to finish before exiting with statement
+            done, not_done = futures.wait(working_futures, return_when='FIRST_EXCEPTION')
+            if not_done:
+                self.kill()
+
+    def shutdown(self):
+        """
+        Shutdown all pipes by setting all the input events.
+        """
+        log.warning('Performing a shutdown')
+        for event in self._events:
+            event.set()
+    
+    def kill(self):
+        """
+        Kills all pipes by setting all the input events and clearing all pipes
+        """
+        log.warning('Performing a kill')
+        self.shutdown()
+        for q in self._queues:
+            with q.mutex:
+                q.queue.clear()

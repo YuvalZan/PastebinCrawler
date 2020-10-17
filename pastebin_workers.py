@@ -2,11 +2,13 @@ import sys
 import requests
 import logging
 from collections import namedtuple
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from lxml import etree
 import arrow
 from pipeable_worker import PipeableWorker
 
+
+BASE_URL = 'https://pastebin.com'
 
 log = logging.getLogger('PastebinCrawler')
 
@@ -16,7 +18,7 @@ class Paste(_PasteBase):
     """
     def __repr__(self):
         return f'<{self.id}, {self.author}, "{self.title}", {arrow.Arrow.fromtimestamp(self.timestamp).format()}>'
-        
+
 
 class RequestWorker(PipeableWorker):
     METHOD = 'GET'
@@ -37,8 +39,8 @@ class RequestWorker(PipeableWorker):
             if e.response.status_code in self.RETRY_STATUS_CODES:
                 log.warning(f'{self}: Retrying failed request with error code {e.response.status_code} to {e.request.url}')
                 self._add_to_input_queue(e.request.url)
-            # Propagate the error down the pipe
-            raise
+            # Don't propagate the error down the pipe
+            return
         return self.parse(res)
 
     def request(self, url):
@@ -54,10 +56,10 @@ class RequestWorker(PipeableWorker):
 
 class InitPastebinWorker(RequestWorker):
     # FOLOWTHROUGH_EXCEPTIONS = FOLOWTHROUGH_EXCEPTIONS + (,)
-    BASE_URL = 'https://pastebin.com'
     ARCHIVE_URL = BASE_URL + '/archive'
     MAINTABLE_XPATH = "//table[@class='maintable']"
-    PASTE_XREF_XPATH = "//span[contains(@class, 'public')]/../a/@href"
+    PASTE_HREF_XPATH = "//span[contains(@class, 'public')]/../a/@href"
+    STRIP_CHARS = '/'
 
     def work(self, _):
         """
@@ -76,11 +78,11 @@ class InitPastebinWorker(RequestWorker):
         tree = etree.HTML(res.content)
         table_search = tree.xpath(self.MAINTABLE_XPATH)
         table = table_search[0]
-        lines =  table.xpath(self.PASTE_XREF_XPATH)
-        urls = (self.BASE_URL + line for line in lines)
-        # Add urls manually to queue in order to add more than one element
-        for url in urls:
-            self._add_to_out_queue(url)
+        hrefs =  table.xpath(self.PASTE_HREF_XPATH)
+        paste_ids = (href.strip(self.STRIP_CHARS) for href in hrefs)
+        # Add paste_ids manually to queue in order to add more than one element
+        for paste_id in paste_ids:
+            self._add_to_out_queue(paste_id)
 
 
 class SinglePastebinWorker(RequestWorker):
@@ -92,6 +94,10 @@ class SinglePastebinWorker(RequestWorker):
     TIME_XPATH = "//div[@class='date']/span/@title"
     TIME_FORMAT = 'HH:mm:ss A'
     URL_STRIP_CHARS = '/'
+
+    def work(self, paste_id):
+        url = urljoin(BASE_URL, paste_id)
+        return super().work(url)
     
     def parse(self, res):
         paste_id = urlparse(res.url).path.strip(self.URL_STRIP_CHARS)

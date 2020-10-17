@@ -92,7 +92,12 @@ class PipeableWorker(abc.ABC):
         Will only stop once input_queue is empty AND input_done_event is set.
         """
         log.debug(f'{self}: Starting work')
-        self.prepare()
+        try:
+            self.prepare()
+        except Exception:
+            breakpoint()
+            log.critical(f'{self}: Unhandles exception while preparing', exc_info=True)
+            raise
         try:
             for is_success, input_data in self.input_generator():
                 try:
@@ -108,6 +113,7 @@ class PipeableWorker(abc.ABC):
                     output_data = sys.exc_info()
                 except Exception:
                     log.error(f'{self}: Unhandles exception while working', exc_info=True)
+                    raise
                 # If the work returned None, no need to add it to the queue
                 if output_data is not None:
                     # Adds work result to out quque if exist
@@ -116,13 +122,15 @@ class PipeableWorker(abc.ABC):
             self.finish()
 
     def _add_to_out_queue(self, output_data, is_success=True):
-        log.debug(f'{self}: Adding to output while success status is {is_success}: {output_data}')
         if self._output_queue is not None:
+            if is_success:
+                log.debug(f'{self}: Sending to output: {output_data}')
             self._output_queue.put((is_success, output_data))
 
     def _add_to_input_queue(self, input_data, is_success=True):
-        log.debug(f'{self}: Adding to input while success status is {is_success}: {input_data}')
         if self._input_queue is not None:
+            if is_success:
+                log.debug(f'{self}: Adding to input: {input_data}')
             self._input_queue.put((is_success, input_data))
 
     def handle_failed_input(self, type, value, traceback):

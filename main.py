@@ -2,9 +2,9 @@ import logging
 from pipe_manager import PipeManager
 from pastebin_workers import InitPastebinWorker, SinglePastebinWorker
 from printer_worker import Printer
-from fs_saver import FSSaver
+from fs_saver import FSSaver, FSCacher
 
-MAX_WORKERS = 16
+MAX_WORKERS = 8
 
 log = logging.getLogger('PastebinCrawler')
 
@@ -14,10 +14,8 @@ def init_logger():
 
 def main():
     init_logger()
-    init_worker = InitPastebinWorker()
     pastebin_squad = [SinglePastebinWorker(f'SinglePastebin_{i}') for i in range(MAX_WORKERS)]
-    printer = Printer()
-    manager = PipeManager([[init_worker], pastebin_squad, [FSSaver()], [printer]])
+    manager = PipeManager([[InitPastebinWorker()], [FSCacher()], pastebin_squad, [FSSaver()]])
     manager.run()
 
 if __name__ == '__main__':
