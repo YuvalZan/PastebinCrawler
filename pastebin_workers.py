@@ -44,6 +44,7 @@ class RequestWorker(PipeableWorker):
         return self.parse(res)
 
     def request(self, url):
+        log.debug(f'Sending {self.METHOD} request to {url}')
         res = self._session.request(self.METHOD, url)
         res.raise_for_status()
         return res
@@ -65,6 +66,7 @@ class InitPastebinWorker(RequestWorker):
         """
         Ignores input, always uses the same url
         """
+        log.info(f"{self}: Getting current paste id's from archive")
         super().work(self.ARCHIVE_URL)
 
     def first_pipe_prepare(self):
@@ -97,6 +99,7 @@ class SinglePastebinWorker(RequestWorker):
 
     def work(self, paste_id):
         url = urljoin(BASE_URL, paste_id)
+        log.info(f"{self}: Getting more information about paste {paste_id}")
         return super().work(url)
     
     def parse(self, res):

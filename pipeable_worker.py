@@ -58,6 +58,9 @@ class PipeableWorker(abc.ABC):
     def __str__(self):
         return f'<{self._worker_name}>'
 
+    def __repr__(self):
+        return str(self)
+
     def set_input_queue(self, input_queue, input_done_event):
         self._input_queue = input_queue
         self._input_done_event = input_done_event

@@ -15,11 +15,11 @@ class FSSaver(PipeableWorker):
     def prepare(self):
         super().prepare()
         BASE_FOLDER.mkdir(exist_ok=True)
-        log.info(f'Writing pastes to {BASE_FOLDER}')
 
     def work(self, paste):
         super().work(paste)
         paste_path = BASE_FOLDER / Path(paste.id).with_suffix(SUFFIX)
+        log.info(f'{self}: Saving paste {paste.id} to {paste_path}')
         with open(paste_path, 'w') as paste_file:
             json.dump(paste, paste_file)
         return paste
@@ -34,6 +34,7 @@ class FSCacher(Cacher):
 
     def prepare(self):
         super().prepare()
+        log.info(f'{self}: Adding previuse paste from disk to cache')
         for file_path in glob.glob(str(BASE_FOLDER / Path('*').with_suffix(SUFFIX))):
             paste_id = Path(file_path).stem
             self.add_to_cache(paste_id)

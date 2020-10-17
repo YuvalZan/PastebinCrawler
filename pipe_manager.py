@@ -18,6 +18,9 @@ class PipeManager():
         self._queues = None
         self._events = None
 
+    def __str__(self):
+        return f'<{self.__class__.__name__}: {self._pipable_squad_list}>'
+
     def _init_pipe(self):
         """
         Connect all squads in pipe
@@ -41,7 +44,7 @@ class PipeManager():
                 worker.set_output_queue(self._queues[i + 1], self._events[i + 1])
 
     def run(self):
-        log.info("Started running pipe manager")
+        log.info(f"Started running: {self}")
         self._init_pipe()
         working_futures = []
         with futures.ThreadPoolExecutor(self.MAX_WORKERS) as executor:
