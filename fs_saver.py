@@ -10,6 +10,7 @@ log = logging.getLogger('PastebinCrawler')
 BASE_FOLDER = Path('.cache')
 SUFFIX = '.json'
 
+
 class FSSaver(PipeableWorker):
     ERROR_LOG = BASE_FOLDER / Path('errors.log')
     LOG_LOCK = threading.Lock()
@@ -38,6 +39,7 @@ class FSCacher(Cacher):
     def prepare(self):
         super().prepare()
         log.info(f'{self}: Adding previuse paste from disk to cache')
-        for file_path in glob.glob(str(BASE_FOLDER / Path('*').with_suffix(SUFFIX))):
+        for file_path in \
+                glob.glob(str(BASE_FOLDER / Path('*').with_suffix(SUFFIX))):
             paste_id = Path(file_path).stem
             self.add_to_cache(paste_id)

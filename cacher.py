@@ -3,6 +3,7 @@ from pipeable_worker import PipeableWorker
 
 log = logging.getLogger('PastebinCrawler')
 
+
 class Cacher(PipeableWorker):
     # None can only be added artificially to the pipe
     DISABLE_CACHE_VALUES = [None]

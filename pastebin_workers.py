@@ -1,4 +1,3 @@
-import sys
 import requests
 import logging
 from collections import namedtuple
@@ -12,12 +11,17 @@ BASE_URL = 'https://pastebin.com'
 
 log = logging.getLogger('PastebinCrawler')
 
-_PasteBase = namedtuple('Paste', ['id', 'author', 'title', 'timestamp', 'content'])
+_PasteBase = namedtuple(
+    'Paste', ['id', 'author', 'title', 'timestamp', 'content'])
+
+
 class Paste(_PasteBase):
     """
     """
+
     def __repr__(self):
-        return f'<{self.id}, {self.author}, "{self.title}", {arrow.Arrow.fromtimestamp(self.timestamp).format()}>'
+        return f'<{self.id}, {self.author}, "{self.title}", \
+        {arrow.Arrow.fromtimestamp(self.timestamp).format()}>'
 
 
 class RequestWorker(PipeableWorker):
@@ -37,7 +41,9 @@ class RequestWorker(PipeableWorker):
             res = self.request(url)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code in self.RETRY_STATUS_CODES:
-                log.warning(f'{self}: Failed request to {e.request.url} (code {e.response.status_code}), Retrying.')
+                log.warning(
+                    f'{self}: Failed request to {e.request.url} \
+                    (code {e.response.status_code}), Retrying.')
                 raise RetryException()
             # Don't propagate the error down the pipe
             return
@@ -54,6 +60,7 @@ class RequestWorker(PipeableWorker):
         Parses requests.models.Response into content
         """
         return res.content
+
 
 class InitPastebinWorker(RequestWorker):
     # FOLOWTHROUGH_EXCEPTIONS = FOLOWTHROUGH_EXCEPTIONS + (,)
@@ -80,7 +87,7 @@ class InitPastebinWorker(RequestWorker):
         tree = etree.HTML(res.content)
         table_search = tree.xpath(self.MAINTABLE_XPATH)
         table = table_search[0]
-        hrefs =  table.xpath(self.PASTE_HREF_XPATH)
+        hrefs = table.xpath(self.PASTE_HREF_XPATH)
         paste_ids = (href.strip(self.STRIP_CHARS) for href in hrefs)
         # Add paste_ids manually to queue in order to add more than one element
         for paste_id in paste_ids:
@@ -101,7 +108,7 @@ class SinglePastebinWorker(RequestWorker):
         url = urljoin(BASE_URL, paste_id)
         log.info(f"{self}: Getting more information about paste {paste_id}")
         return super().work(url)
-    
+
     def parse(self, res):
         paste_id = urlparse(res.url).path.strip(self.URL_STRIP_CHARS)
         tree = etree.HTML(res.content)
@@ -113,5 +120,6 @@ class SinglePastebinWorker(RequestWorker):
         date = arrow.get(raw_date, self.DATE_FORMAT)
         raw_time = tree.xpath(self.TIME_XPATH)[0]
         time = arrow.get(raw_time, self.TIME_FORMAT)
-        datetime = date.replace(hour=time.hour, minute=time.minute, second=time.second)
+        datetime = date.replace(
+            hour=time.hour, minute=time.minute, second=time.second)
         return Paste(paste_id, author, title, datetime.timestamp, content)

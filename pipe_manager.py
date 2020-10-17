@@ -8,6 +8,7 @@ from concurrent import futures
 
 log = logging.getLogger('PastebinCrawler')
 
+
 class PipeManager():
     MAX_WORKERS = 16
     POLL_INTERVAL = 0.2
@@ -15,7 +16,8 @@ class PipeManager():
     def __init__(self, pipable_squad_list, queue_maxsize=0):
         """
         Initiates a pipe of workers.
-        :param pipable_squad_list: A list of squads where each squad is a list of workers
+        :param pipable_squad_list: A list of squads.
+                                   Each squad is a list of workers
         """
         self._pipable_squad_list = pipable_squad_list
         self._queue_maxsize = queue_maxsize
@@ -34,7 +36,8 @@ class PipeManager():
             # No connection to setup
             return
         # Creates a queue for every connection between two squads
-        self._queues = [queue.Queue(self._queue_maxsize) for _ in range(connections_count)]
+        self._queues = [queue.Queue(self._queue_maxsize)
+                        for _ in range(connections_count)]
         self._events = [threading.Event() for _ in range(connections_count)]
         # Connect first and last squads
         for worker in self._pipable_squad_list[0]:
@@ -45,12 +48,14 @@ class PipeManager():
         for i, squad in enumerate(self._pipable_squad_list[1:-1]):
             for worker in squad:
                 worker.set_input_queue(self._queues[i], self._events[i])
-                worker.set_output_queue(self._queues[i + 1], self._events[i + 1])
+                worker.set_output_queue(
+                    self._queues[i + 1], self._events[i + 1])
 
     def run(self):
         log.info(f"Started running: {self}")
-        # Gracefully shutdown on KeyboudInterupt 
-        prev_signal_handler = signal.signal(signal.SIGINT, self._shutdown_handler)
+        # Gracefully shutdown on KeyboudInterupt
+        prev_signal_handler = signal.signal(
+            signal.SIGINT, self._shutdown_handler)
         signal.signal(signal.SIGTERM, self._shutdown_handler)
         try:
             self._init_pipe()
@@ -65,22 +70,25 @@ class PipeManager():
                 not_done = True
                 # Wait for all workers to finish
                 while not_done:
-                    done, not_done = futures.wait(working_futures, return_when='FIRST_EXCEPTION', timeout=self.POLL_INTERVAL)
+                    done, not_done = futures.wait(
+                        working_futures, return_when='FIRST_EXCEPTION',
+                        timeout=self.POLL_INTERVAL)
                     # Use timeout and sleep in order to allow KeybourdInterupt
                     time.sleep(self.POLL_INTERVAL)
                 # Log exceptions in workers if necessary
                 for future in itertools.chain(done, not_done):
                     exception = future.exception()
                     if exception:
-                        log.critical(f'Exception in one of the workers: {exception}')
+                        log.critical(
+                            f'Exception in one of the workers: {exception}')
                         self.kill()
         finally:
             signal.signal(signal.SIGINT, prev_signal_handler)
 
-
     def _shutdown_handler(self, signalnum, frame):
         """
-        Used in order to 
+        Logs signal and shutdown.
+        Used in conjunction with signal.signal
         """
         log.warning(f"Got signal {signal.strsignal(signalnum)}")
         self.shutdown()
@@ -92,7 +100,7 @@ class PipeManager():
         log.warning('Performing shutdown')
         for event in self._events:
             event.set()
-    
+
     def kill(self):
         """
         Kills all pipes by setting all the input events and clearing all pipes

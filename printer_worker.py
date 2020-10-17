@@ -3,6 +3,7 @@ from pipeable_worker import PipeableWorker
 
 log = logging.getLogger('PastebinCrawler')
 
+
 class Printer(PipeableWorker):
 
     def work(self, data):

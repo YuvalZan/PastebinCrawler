@@ -16,7 +16,8 @@ class PipeableWorker(abc.ABC):
     FOLOWTHROUGH_EXCEPTIONS = (Exception,)
 
     def __init__(self, worker_name=None):
-        self._worker_name = worker_name if worker_name is not None else self.__class__.__name__
+        self._worker_name = worker_name if \
+            worker_name is not None else self.__class__.__name__
         # May be set by set_input/output_queue
         self._input_queue = None
         self._output_queue = None
@@ -44,7 +45,7 @@ class PipeableWorker(abc.ABC):
         May overload this method
         """
         log.debug(f'{self}: runnig as first pipe')
-        # Create an dummy empty queue. 
+        # Create an dummy empty queue.
         q = queue.Queue()
         e = threading.Event()
         e.set()
@@ -84,7 +85,8 @@ class PipeableWorker(abc.ABC):
             # First worker in the pipe
             self.first_pipe_prepare()
         # Work as long as there is or there will be an input
-        while (not self._input_done_event.is_set()) or self._input_queue.unfinished_tasks:
+        while ((not self._input_done_event.is_set()) or
+               self._input_queue.unfinished_tasks):
             try:
                 while True:
                     # May block up to POLL_TIMEOUT seconds
@@ -103,11 +105,13 @@ class PipeableWorker(abc.ABC):
         try:
             self.prepare()
         except Exception:
-            log.critical(f'{self}: Unhandles exception while preparing', exc_info=True)
+            log.critical(
+                f'{self}: Unhandles exception while preparing', exc_info=True)
             raise
         try:
             for is_success, input_data in self.input_generator():
-                is_success, output_data = self._input_handler(is_success, input_data)
+                is_success, output_data = self._input_handler(
+                    is_success, input_data)
                 # If the work returned None, no need to add it to the queue
                 if output_data is not None:
                     self._add_to_out_queue(output_data, is_success=is_success)
@@ -133,7 +137,8 @@ class PipeableWorker(abc.ABC):
             # These exceptions will continue in the pipe
             return False, sys.exc_info()
         except Exception:
-            log.error(f'{self}: Unhandles exception while working', exc_info=True)
+            log.error(
+                f'{self}: Unhandles exception while working', exc_info=True)
             raise
         finally:
             self._input_queue.task_done()
