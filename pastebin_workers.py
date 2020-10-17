@@ -21,6 +21,7 @@ class Paste(_PasteBase):
 class RequestWorker(PipeableWorker):
     METHOD = 'GET'
     FOLOWTHROUGH_EXCEPTIONS = (requests.RequestException,)
+    RETRY_STATUS_CODES = [429]
 
     def __init__(self, worker_name=None, session=None):
         """
@@ -30,7 +31,14 @@ class RequestWorker(PipeableWorker):
 
     def work(self, url):
         super().work(url)
-        res = self.request(url)
+        try:
+            res = self.request(url)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code in self.RETRY_STATUS_CODES:
+                log.warning(f'{self}: Retrying failed request with error code {e.response.status_code} to {e.request.url}')
+                self._add_to_input_queue(e.request.url)
+            # Propagate the error down the pipe
+            raise
         return self.parse(res)
 
     def request(self, url):
