@@ -32,7 +32,7 @@ def main():
     pastebin_squad = [SinglePastebinWorker(f'SinglePastebin_{i}') for i in range(MAX_REQUEST_WORKERS)]
     fs_saver_squad = [FSSaver(f'FSSaver_{i}') for i in range(MAX_SAVE_WORKERS)]
     timer = Timer(TIMER_INTERVAL)
-    manager = PipeManager([[timer], [InitPastebinWorker()], [FSCacher()], pastebin_squad, fs_saver_squad, [Printer()]])
+    manager = PipeManager([[timer], [InitPastebinWorker()], [FSCacher()], pastebin_squad, fs_saver_squad])
     manager.run()
 
 if __name__ == '__main__':
