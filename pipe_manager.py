@@ -56,6 +56,10 @@ class PipeManager():
             # Wait for all workers to finish before exiting with statement
             done, not_done = futures.wait(working_futures, return_when='FIRST_EXCEPTION')
             if not_done:
+                for future in (future for future in not_done if future.exception()):
+                    exception = future.exception()
+                    if exception:
+                        log.critical(f'Exception in one of the workers: {exception}')
                 self.kill()
 
     def shutdown(self):

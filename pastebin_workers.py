@@ -5,7 +5,7 @@ from collections import namedtuple
 from urllib.parse import urlparse, urljoin
 from lxml import etree
 import arrow
-from pipeable_worker import PipeableWorker
+from pipeable_worker import PipeableWorker, RetryException
 
 
 BASE_URL = 'https://pastebin.com'
@@ -37,14 +37,14 @@ class RequestWorker(PipeableWorker):
             res = self.request(url)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code in self.RETRY_STATUS_CODES:
-                log.warning(f'{self}: Retrying failed request with error code {e.response.status_code} to {e.request.url}')
-                self._add_to_input_queue(e.request.url)
+                log.warning(f'{self}: Failed request to {e.request.url} (code {e.response.status_code}), Retrying.')
+                raise RetryException()
             # Don't propagate the error down the pipe
             return
         return self.parse(res)
 
     def request(self, url):
-        log.debug(f'Sending {self.METHOD} request to {url}')
+        log.debug(f'{self}: Sending {self.METHOD} request to {url}')
         res = self._session.request(self.METHOD, url)
         res.raise_for_status()
         return res
@@ -66,7 +66,7 @@ class InitPastebinWorker(RequestWorker):
         """
         Ignores input, always uses the same url
         """
-        log.info(f"{self}: Getting current paste id's from archive")
+        log.info(f"{self}: Getting current paste ids' from archive")
         super().work(self.ARCHIVE_URL)
 
     def first_pipe_prepare(self):

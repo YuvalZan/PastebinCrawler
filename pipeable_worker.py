@@ -6,6 +6,11 @@ import threading
 
 log = logging.getLogger('PastebinCrawler')
 
+
+class RetryException(Exception):
+    pass
+
+
 class PipeableWorker(abc.ABC):
     POLL_TIMEOUT = 0.2
     FOLOWTHROUGH_EXCEPTIONS = (Exception,)
@@ -79,13 +84,13 @@ class PipeableWorker(abc.ABC):
             # First worker in the pipe
             self.first_pipe_prepare()
         # Work as long as there is or there will be an input
-        while (not self._input_done_event.is_set()) or (not self._input_queue.empty()):
+        while (not self._input_done_event.is_set()) or self._input_queue.unfinished_tasks:
             try:
                 while True:
                     # May block up to POLL_TIMEOUT seconds
                     yield self._input_queue.get(timeout=self.POLL_TIMEOUT)
             except queue.Empty:
-                # Queue is empty, check if finish event is set
+                # Queue is empty, check if finish all tasks
                 pass
 
     def work_until_done(self):
@@ -98,31 +103,40 @@ class PipeableWorker(abc.ABC):
         try:
             self.prepare()
         except Exception:
-            breakpoint()
             log.critical(f'{self}: Unhandles exception while preparing', exc_info=True)
             raise
         try:
             for is_success, input_data in self.input_generator():
-                try:
-                    # Handle input by working or handling errors
-                    if is_success:
-                        output_data = self.work(input_data)
-                    else:
-                        # input_data is (type, value, traceback)
-                        is_success, output_data = self.handle_failed_input(*input_data)
-                except self.FOLOWTHROUGH_EXCEPTIONS:
-                    # These exceptions will continue in the pipe
-                    is_success = False
-                    output_data = sys.exc_info()
-                except Exception:
-                    log.error(f'{self}: Unhandles exception while working', exc_info=True)
-                    raise
+                is_success, output_data = self._input_handler(is_success, input_data)
                 # If the work returned None, no need to add it to the queue
                 if output_data is not None:
-                    # Adds work result to out quque if exist
                     self._add_to_out_queue(output_data, is_success=is_success)
         finally:
             self.finish()
+
+    def _input_handler(self, is_success, input_data):
+        """
+        Directs input to work or handle_failed_input by is_success value.
+        """
+        try:
+            # Handle input by working or handling errors
+            if is_success:
+                output_data = self.work(input_data)
+            else:
+                # input_data is (type, value, traceback)
+                is_success, output_data = self.handle_failed_input(*input_data)
+            return is_success, output_data
+        except RetryException:
+            self._add_to_input_queue(input_data)
+            return None, None
+        except self.FOLOWTHROUGH_EXCEPTIONS:
+            # These exceptions will continue in the pipe
+            return False, sys.exc_info()
+        except Exception:
+            log.error(f'{self}: Unhandles exception while working', exc_info=True)
+            raise
+        finally:
+            self._input_queue.task_done()
 
     def _add_to_out_queue(self, output_data, is_success=True):
         if self._output_queue is not None:

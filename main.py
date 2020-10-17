@@ -4,7 +4,7 @@ from pastebin_workers import InitPastebinWorker, SinglePastebinWorker
 from printer_worker import Printer
 from fs_saver import FSSaver, FSCacher
 
-MAX_REQUEST_WORKERS = 8
+MAX_REQUEST_WORKERS = 16
 MAX_SAVE_WORKERS = 2
 LOG_MAX_SIZE_BYTES = 1024 * 1024
 LOG_MAX_BACKUPS = 2

@@ -6,7 +6,7 @@ from pipeable_worker import PipeableWorker
 from cacher import Cacher
 
 log = logging.getLogger('PastebinCrawler')
-BASE_FOLDER = Path('PasteBin')
+BASE_FOLDER = Path('.cache')
 SUFFIX = '.json'
 
 class FSSaver(PipeableWorker):
