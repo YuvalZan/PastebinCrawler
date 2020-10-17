@@ -6,6 +6,7 @@ log = logging.getLogger('PastebinCrawler')
 class Printer(PipeableWorker):
 
     def work(self, data):
+        super().work(data)
         log.info(f'{self}: {data}')
         print(data)
 

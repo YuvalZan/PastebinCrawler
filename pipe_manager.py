@@ -1,12 +1,16 @@
 import logging
 import queue
 import threading
+import signal
+import itertools
+import time
 from concurrent import futures
 
 log = logging.getLogger('PastebinCrawler')
 
 class PipeManager():
     MAX_WORKERS = 16
+    POLL_INTERVAL = 0.2
 
     def __init__(self, pipable_squad_list, queue_maxsize=0):
         """
@@ -45,28 +49,47 @@ class PipeManager():
 
     def run(self):
         log.info(f"Started running: {self}")
-        self._init_pipe()
-        working_futures = []
-        with futures.ThreadPoolExecutor(self.MAX_WORKERS) as executor:
-            for squad in self._pipable_squad_list:
-                for worker in squad:
-                    log.debug(f'Submited worker: {worker}')
-                    future = executor.submit(worker.work_until_done)
-                    working_futures.append(future)
-            # Wait for all workers to finish before exiting with statement
-            done, not_done = futures.wait(working_futures, return_when='FIRST_EXCEPTION')
-            if not_done:
-                for future in (future for future in not_done if future.exception()):
+        # Gracefully shutdown on KeyboudInterupt 
+        prev_signal_handler = signal.signal(signal.SIGINT, self._shutdown_handler)
+        signal.signal(signal.SIGTERM, self._shutdown_handler)
+        try:
+            self._init_pipe()
+            working_futures = []
+            with futures.ThreadPoolExecutor(self.MAX_WORKERS) as executor:
+                for squad in self._pipable_squad_list:
+                    for worker in squad:
+                        log.debug(f'Submitted worker: {worker}')
+                        future = executor.submit(worker.work_until_done)
+                        working_futures.append(future)
+
+                not_done = True
+                # Wait for all workers to finish
+                while not_done:
+                    done, not_done = futures.wait(working_futures, return_when='FIRST_EXCEPTION', timeout=self.POLL_INTERVAL)
+                    # Use timeout and sleep in order to allow KeybourdInterupt
+                    time.sleep(self.POLL_INTERVAL)
+                # Log exceptions in workers if necessary
+                for future in itertools.chain(done, not_done):
                     exception = future.exception()
                     if exception:
                         log.critical(f'Exception in one of the workers: {exception}')
-                self.kill()
+                        self.kill()
+        finally:
+            signal.signal(signal.SIGINT, prev_signal_handler)
+
+
+    def _shutdown_handler(self, signalnum, frame):
+        """
+        Used in order to 
+        """
+        log.warning(f"Got signal {signal.strsignal(signalnum)}")
+        self.shutdown()
 
     def shutdown(self):
         """
         Shutdown all pipes by setting all the input events.
         """
-        log.warning('Performing a shutdown')
+        log.warning('Performing shutdown')
         for event in self._events:
             event.set()
     
@@ -74,7 +97,7 @@ class PipeManager():
         """
         Kills all pipes by setting all the input events and clearing all pipes
         """
-        log.warning('Performing a kill')
+        log.warning('Performing kill')
         self.shutdown()
         for q in self._queues:
             with q.mutex:
