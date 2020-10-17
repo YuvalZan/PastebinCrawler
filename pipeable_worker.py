@@ -141,6 +141,7 @@ class PipeableWorker(abc.ABC):
             # These exceptions will continue in the pipe
             return False, sys.exc_info()
         except Exception:
+            breakpoint()
             log.error(
                 f'{self}: Unhandles exception while working', exc_info=True)
             raise

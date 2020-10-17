@@ -2,7 +2,6 @@ import logging
 import queue
 import threading
 import signal
-import itertools
 import time
 from concurrent import futures
 
@@ -29,6 +28,7 @@ class PipeManager():
         self._queue_maxsize = queue_maxsize
         self._queues = None
         self._events = None
+        self._active_workers = []
 
     def __str__(self):
         return f'<{self.__class__.__name__}: {self._pipable_squad_list}>'
@@ -69,31 +69,40 @@ class PipeManager():
         signal.signal(signal.SIGTERM, self._shutdown_handler)
         try:
             self._init_pipe()
-            working_futures = []
             with futures.ThreadPoolExecutor(self.MAX_WORKERS) as executor:
-                for squad in self._pipable_squad_list:
-                    for worker in squad:
-                        log.debug(f'Submitted worker: {worker}')
-                        future = executor.submit(worker.work_until_done)
-                        working_futures.append(future)
-
-                not_done = True
-                # Wait for all workers to finish
-                while not_done:
-                    done, not_done = futures.wait(
-                        working_futures, return_when='FIRST_EXCEPTION',
-                        timeout=self.POLL_INTERVAL)
-                    # Use timeout and sleep in order to allow KeybourdInterupt
-                    time.sleep(self.POLL_INTERVAL)
-                # Log exceptions in workers if necessary
-                for future in itertools.chain(done, not_done):
-                    exception = future.exception()
-                    if exception:
-                        log.critical(
-                            f'Exception in one of the workers: {exception}')
-                        self.kill()
+                self._submit_all_workers(executor)
+                self._wait_until_done()
         finally:
             signal.signal(signal.SIGINT, prev_signal_handler)
+
+    def _submit_all_workers(self, executor):
+        for squad in self._pipable_squad_list:
+            for worker in squad:
+                log.debug(f'Submitted worker: {worker}')
+                future = executor.submit(worker.work_until_done)
+                self._active_workers.append(future)
+
+    def _wait_until_done(self):
+        """
+        Wait for all workers to finish or an exception in a worker
+        Logs and performs kill if any exception was found.
+        """
+        not_done = True
+        while not_done:
+            done, not_done = futures.wait(
+                self._active_workers, return_when='FIRST_EXCEPTION',
+                timeout=self.POLL_INTERVAL)
+            # Log and kill on first exception
+            for future in done:
+                # Won't block
+                exception = future.exception()
+                if exception:
+                    log.critical(
+                        f'Exception in one of the workers: {exception}')
+                    self.kill()
+            # Use timeout and sleep in order to allow KeybourdInterupt
+            time.sleep(self.POLL_INTERVAL)
+        self._active_workers = []
 
     def _shutdown_handler(self, signalnum, frame):
         """
