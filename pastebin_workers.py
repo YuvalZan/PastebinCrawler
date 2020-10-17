@@ -21,8 +21,8 @@ class Paste(_PasteBase):
     """
 
     def __repr__(self):
-        return f'<{self.id}, {self.author}, "{self.title}", \
-        {arrow.Arrow.fromtimestamp(self.timestamp).format()}>'
+        return f'<{self.id}, {self.author}, "{self.title}", ' \
+               f'{arrow.Arrow.fromtimestamp(self.timestamp).format()}>'
 
 
 class RequestWorker(PipeableWorker):
@@ -52,8 +52,8 @@ class RequestWorker(PipeableWorker):
         except requests.exceptions.HTTPError as e:
             if e.response.status_code in self.RETRY_STATUS_CODES:
                 log.warning(
-                    f'{self}: Failed request to {e.request.url} \
-                    (code {e.response.status_code}), Retrying.')
+                    f'{self}: Failed request to {e.request.url} '
+                    f'(code {e.response.status_code}), Retrying.')
                 raise RetryException()
             # Don't propagate the error down the pipe
             return

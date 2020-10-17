@@ -25,8 +25,8 @@ class Timer(PipeableWorker):
         self._sleep_interval = sleep_interval
 
     def work(self, sleep_interval):
-        log.info(f'{self}: Started timer with an interval of \
-            {self._sleep_interval}')
+        log.info(f'{self}: Started timer with an interval of '
+                 f'{self._sleep_interval}')
         # Run untill external shutdown
         while not self._output_done_event.is_set():
             self._add_to_out_queue(sleep_interval)
