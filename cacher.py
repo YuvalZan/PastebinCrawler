@@ -5,6 +5,13 @@ log = logging.getLogger('PastebinCrawler')
 
 
 class Cacher(PipeableWorker):
+    """
+    This worker caches incoming input and propogates it.
+    If an input was seen before than it will "drop" it.
+    Input: Any hashable
+    Output: The input
+    Notice: The input must be hashable or a TypeError will be raised
+    """
     # None can only be added artificially to the pipe
     DISABLE_CACHE_VALUES = [None]
 

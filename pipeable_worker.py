@@ -16,6 +16,10 @@ class PipeableWorker(abc.ABC):
     FOLOWTHROUGH_EXCEPTIONS = (Exception,)
 
     def __init__(self, worker_name=None):
+        """
+        :param worker_name: A name to be used in log messages.
+                            Default to the class name.
+        """
         self._worker_name = worker_name if \
             worker_name is not None else self.__class__.__name__
         # May be set by set_input/output_queue

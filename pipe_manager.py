@@ -10,14 +10,20 @@ log = logging.getLogger('PastebinCrawler')
 
 
 class PipeManager():
+    """
+    This class manages a pipe in order to move data between workers.
+    Each section of the pipe consists of a "squad" of one or more identical
+    workers that perform a single type of work in parallel.
+    The output from each section is transfered to the input of the next.
+    """
     MAX_WORKERS = 16
     POLL_INTERVAL = 0.2
 
     def __init__(self, pipable_squad_list, queue_maxsize=0):
         """
-        Initiates a pipe of workers.
         :param pipable_squad_list: A list of squads.
                                    Each squad is a list of workers
+        :param queue_maxsize: Limit the size of the queues
         """
         self._pipable_squad_list = pipable_squad_list
         self._queue_maxsize = queue_maxsize
@@ -29,7 +35,7 @@ class PipeManager():
 
     def _init_pipe(self):
         """
-        Connect all squads in pipe
+        Connect all squads's queues in a pipe
         """
         connections_count = len(self._pipable_squad_list) - 1
         if connections_count <= 0:
@@ -52,6 +58,10 @@ class PipeManager():
                     self._queues[i + 1], self._events[i + 1])
 
     def run(self):
+        """
+        Creates the pipe and run it.
+        You may use Ctrl-C in order to perform a gracefull shutdown.
+        """
         log.info(f"Started running: {self}")
         # Gracefully shutdown on KeyboudInterupt
         prev_signal_handler = signal.signal(

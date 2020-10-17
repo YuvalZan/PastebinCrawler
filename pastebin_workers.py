@@ -17,6 +17,7 @@ _PasteBase = namedtuple(
 
 class Paste(_PasteBase):
     """
+    Saves the data of a single paste
     """
 
     def __repr__(self):
@@ -25,12 +26,21 @@ class Paste(_PasteBase):
 
 
 class RequestWorker(PipeableWorker):
+    """
+    This base worker can be used by any worker that crawls the web.
+    Input: URL
+    Output: The content of the url's website
+    """
     METHOD = 'GET'
     FOLOWTHROUGH_EXCEPTIONS = (requests.RequestException,)
     RETRY_STATUS_CODES = [429]
 
     def __init__(self, worker_name=None, session=None):
         """
+        :param worker_name: A name to be used in log messages.
+                    Default to the class name.
+        :param session: An optional requests like session object.
+                        Will initiate one by default.
         """
         super().__init__(worker_name)
         self._session = requests.session() if session is None else session
@@ -63,7 +73,14 @@ class RequestWorker(PipeableWorker):
 
 
 class InitPastebinWorker(RequestWorker):
-    # FOLOWTHROUGH_EXCEPTIONS = FOLOWTHROUGH_EXCEPTIONS + (,)
+    """
+    This worker perform the first request to pastebin in order to get a list
+    of paste ids.
+    It can also be used as the first in the pipe.
+    Input: Ignores
+    Output: Multiple paste ids
+    """
+
     ARCHIVE_URL = BASE_URL + '/archive'
     MAINTABLE_XPATH = "//table[@class='maintable']"
     PASTE_HREF_XPATH = "//span[contains(@class, 'public')]/../a/@href"
@@ -95,6 +112,11 @@ class InitPastebinWorker(RequestWorker):
 
 
 class SinglePastebinWorker(RequestWorker):
+    """
+    This worker requests and parses pastebin for more information about a paste
+    Input: Paste id
+    Output: Paste object
+    """
     AUTHOR_XPATH = "//div[@class='username']/a"
     TITLE_XPATH = "//div[@class='info-top']/h1"
     CONTENT_XPATH = "//div[@class='content']/*/textarea[@class='textarea']"

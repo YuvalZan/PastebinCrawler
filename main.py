@@ -1,3 +1,9 @@
+"""
+Crawls pastebin.com for public pastes.
+Will crawl again every <TIMER_INTERVAL> and save each paste into a json file.
+"""
+
+
 import logging
 from pipe_manager import PipeManager
 from pastebin_workers import InitPastebinWorker, SinglePastebinWorker

@@ -7,9 +7,20 @@ log = logging.getLogger('PastebinCrawler')
 
 
 class Timer(PipeableWorker):
+    """
+    This worker is designed to be the first in the pipe and schedule it.
+    Input: Sleep interval
+    Output: Time slept is seconds
+    """
     POLL_INTERVAL = 0.2
 
     def __init__(self, sleep_interval, worker_name=None):
+        """
+        :param sleep_interval: How many seconds to sleep between
+                               each work session.
+        :param worker_name: A name to be used in log messages.
+                    Default to the class name.
+        """
         super().__init__(worker_name=worker_name)
         self._sleep_interval = sleep_interval
 

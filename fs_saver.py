@@ -12,6 +12,13 @@ SUFFIX = '.json'
 
 
 class FSSaver(PipeableWorker):
+    """
+    This worker saves each input paste to a json file with its id as a name.
+    It will also save each exception from the input to a log file.
+    Input: Paste objects
+    Output: The input
+
+    """
     ERROR_LOG = BASE_FOLDER / Path('errors.log')
     LOG_LOCK = threading.Lock()
 
@@ -35,6 +42,14 @@ class FSSaver(PipeableWorker):
 
 
 class FSCacher(Cacher):
+    """
+    This worker is similar to the Cacher worker in its normal behavior.
+    The difference is that it will initialize the cache by checking the local
+    FS for any saved pastes.
+    Input: Any hashable
+    Output: The input
+    Notice: The input must be hashable or a TypeError will be raised
+    """
 
     def prepare(self):
         super().prepare()
